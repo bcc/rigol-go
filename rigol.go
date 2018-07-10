@@ -1,15 +1,14 @@
-
 package main
 
 import (
+	"bufio"
+	"flag"
 	"fmt"
 	"net"
-	"bufio"
-	"time"
 	"os"
-	"flag"
-	"strings"
 	"strconv"
+	"strings"
+	"time"
 )
 
 var chancount = flag.Int("channels", 4, "number of channels to collect")
@@ -58,21 +57,21 @@ func main() {
 		tdone := time.Now()
 		fmt.Printf("%s, %s, %s\n", tdone.Format(time.RFC3339), result, tdone.Sub(tstart))
 
-		time.Sleep(time.Duration(*interval)*time.Second)
+		time.Sleep(time.Duration(*interval) * time.Second)
 	}
 }
 
-func queryScope (conn net.Conn, query string) string {
+func queryScope(conn net.Conn, query string) string {
 	fmt.Fprintf(conn, fmt.Sprintf("%s\n", query))
 	c1, _ := bufio.NewReader(conn).ReadString('\n')
 	return strings.TrimSuffix(c1, "\n")
 }
 
-func getScreenshot (conn net.Conn) []byte {
+func getScreenshot(conn net.Conn) []byte {
 	// Args are Colour, Invert, Format.
 	fmt.Fprintf(conn, ":DISP:DATA? ON,FALSE,PNG\n")
 	reader := bufio.NewReader(conn)
-	header1,_ := reader.ReadByte()
+	header1, _ := reader.ReadByte()
 
 	// should be a #
 	if header1 != 35 {
@@ -80,32 +79,32 @@ func getScreenshot (conn net.Conn) []byte {
 	}
 
 	// Next character shows us the length of the length of the datastream!
-	header2,_ := reader.ReadByte()
+	header2, _ := reader.ReadByte()
 	buffsize := int(header2 - 48)
 
 	header3 := make([]byte, buffsize)
-	for i:=0; i<buffsize; i++ {
-		t,_ := reader.ReadByte()
+	for i := 0; i < buffsize; i++ {
+		t, _ := reader.ReadByte()
 		header3[i] = t
 	}
- 
+
 	// This is now the image buffersize
-	buffsize,_ = strconv.Atoi(string(header3))
+	buffsize, _ = strconv.Atoi(string(header3))
 
 	imgdata := make([]byte, buffsize)
-	for i:=0; i<buffsize; i++ {
-		t,_ := reader.ReadByte()
+	for i := 0; i < buffsize; i++ {
+		t, _ := reader.ReadByte()
 		imgdata[i] = t
 	}
 
 	return imgdata
 }
 
-func writeScreenshot (img []byte) {
+func writeScreenshot(img []byte) {
 	// Filename safe date format
 	tstamp := time.Now().Format("2006-01-02.150405")
 	filename := fmt.Sprintf("%s.%s.png", "screenshot", tstamp)
-		
+
 	f, err := os.Create(filename)
 	check(err)
 	defer f.Close()
@@ -113,10 +112,10 @@ func writeScreenshot (img []byte) {
 	check(err)
 }
 
-func buildQuery () (string,string) {
+func buildQuery() (string, string) {
 	var command []string
 	var header []string
-	for i:=0; i<*chancount; i++ {
+	for i := 0; i < *chancount; i++ {
 
 		// Stacking queries together seems to knock about 10% off the query time
 		// compared to requesting one measurement at a time.
@@ -154,7 +153,7 @@ func buildQuery () (string,string) {
 			header = append(header, fmt.Sprintf("CH%d freq", i+1))
 		}
 	}
-	return strings.Join(command,";"), strings.Join(header,", ")
+	return strings.Join(command, ";"), strings.Join(header, ", ")
 }
 
 func check(e error) {
