@@ -23,6 +23,7 @@ var f_vpp = flag.Bool("vpp", false, "include Vpp")
 var f_vrms = flag.Bool("vrms", false, "include Vrms")
 var f_freq = flag.Bool("freq", false, "include frequency")
 var f_screen = flag.Bool("screen", false, "collect screenshots in PNG format")
+var f_clear = flag.Bool("clear", false, "clear stats after collection")
 
 func main() {
 
@@ -45,6 +46,10 @@ func main() {
 
 		tstart := time.Now()
 
+		result := queryScope(conn, toRun)
+		// Return from scope is semicolon separated, so just switch for commas.
+		result = strings.Replace(result, ";", ", ", -1)
+
 		// Collect and write screenshot if the screen flag is set.
 		if *f_screen {
 			img := getScreenshot(conn)
@@ -53,9 +58,10 @@ func main() {
 			}
 		}
 
-		result := queryScope(conn, toRun)
-		// Return from scope is semicolon separated, so just switch for commas.
-		result = strings.Replace(result, ";", ", ", -1)
+		// Clear history
+		if *f_clear {
+			fmt.Fprintf(conn, ":CLE\n")
+		}
 
 		tdone := time.Now()
 		taken := tdone.Sub(tstart)
@@ -68,7 +74,6 @@ func main() {
 		intervalms := int64(*interval * 1000)
 		if takenms < intervalms {
 			sleeptime := time.Duration(intervalms - takenms) * time.Millisecond
-			fmt.Println("Sleeping", sleeptime, "as duration was", taken)
 			time.Sleep(sleeptime)
 		}
 
@@ -122,6 +127,7 @@ func buildQuery() (string, string) {
 			header = append(header, fmt.Sprintf("CH%d freq", i+1))
 		}
 	}
+
 	return strings.Join(command, ";"), strings.Join(header, ", ")
 }
 
