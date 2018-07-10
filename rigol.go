@@ -32,6 +32,7 @@ func main() {
 	conn, err := net.Dial("tcp", connstr)
 	if err != nil {
 		fmt.Printf("Unable to connect to %s\n", connstr)
+		fmt.Println(err)
 		os.Exit(2)
 	}
 
@@ -47,11 +48,13 @@ func main() {
 		// Collect and write screenshot if the screen flag is set.
 		if *f_screen {
 			img := getScreenshot(conn)
-			writeScreenshot(img)
+			if img != nil {
+				writeScreenshot(img)
+			}
 		}
 
 		result := queryScope(conn, toRun)
-		// Return from scope is semicolon separated, so we'll just switch for commas.
+		// Return from scope is semicolon separated, so just switch for commas.
 		result = strings.Replace(result, ";", ", ", -1)
 
 		tdone := time.Now()
@@ -65,51 +68,6 @@ func queryScope(conn net.Conn, query string) string {
 	fmt.Fprintf(conn, fmt.Sprintf("%s\n", query))
 	c1, _ := bufio.NewReader(conn).ReadString('\n')
 	return strings.TrimSuffix(c1, "\n")
-}
-
-func getScreenshot(conn net.Conn) []byte {
-	// Args are Colour, Invert, Format.
-	fmt.Fprintf(conn, ":DISP:DATA? ON,FALSE,PNG\n")
-	reader := bufio.NewReader(conn)
-	header1, _ := reader.ReadByte()
-
-	// should be a #
-	if header1 != 35 {
-		return nil
-	}
-
-	// Next character shows us the length of the length of the datastream!
-	header2, _ := reader.ReadByte()
-	buffsize := int(header2 - 48)
-
-	header3 := make([]byte, buffsize)
-	for i := 0; i < buffsize; i++ {
-		t, _ := reader.ReadByte()
-		header3[i] = t
-	}
-
-	// This is now the image buffersize
-	buffsize, _ = strconv.Atoi(string(header3))
-
-	imgdata := make([]byte, buffsize)
-	for i := 0; i < buffsize; i++ {
-		t, _ := reader.ReadByte()
-		imgdata[i] = t
-	}
-
-	return imgdata
-}
-
-func writeScreenshot(img []byte) {
-	// Filename safe date format
-	tstamp := time.Now().Format("2006-01-02.150405")
-	filename := fmt.Sprintf("%s.%s.png", "screenshot", tstamp)
-
-	f, err := os.Create(filename)
-	check(err)
-	defer f.Close()
-	_, err = f.Write(img)
-	check(err)
 }
 
 func buildQuery() (string, string) {
@@ -160,4 +118,57 @@ func check(e error) {
 	if e != nil {
 		panic(e)
 	}
+}
+
+func getScreenshot(conn net.Conn) []byte {
+	// Args are Colour, Invert, Format.
+	fmt.Fprintf(conn, ":DISP:DATA? ON,FALSE,PNG\n")
+	reader := bufio.NewReader(conn)
+	header1, _ := reader.ReadByte()
+
+	// should be a #, but let's not panic if it's not
+	if header1 != 35 {
+		return nil
+	}
+
+	// Next character shows us the length of the length of the datastream!
+	header2, _ := reader.ReadByte()
+	buffsize := int(header2 - 48)
+
+	// Quick sanity check, skip if not valid.
+	if buffsize < 1 || buffsize > 9 {
+		return nil
+	}
+
+	// Read the length data from the buffer.
+	header3 := make([]byte, buffsize)
+	for i := 0; i < buffsize; i++ {
+		t, err := reader.ReadByte()
+		check(err)
+		header3[i] = t
+	}
+
+	// This is now the image size
+	buffsize, _ = strconv.Atoi(string(header3))
+
+	imgdata := make([]byte, buffsize)
+	for i := 0; i < buffsize; i++ {
+		t, err := reader.ReadByte()
+		check(err)
+		imgdata[i] = t
+	}
+
+	return imgdata
+}
+
+func writeScreenshot(img []byte) {
+	// Filename safe date format
+	tstamp := time.Now().Format("2006-01-02.150405")
+	filename := fmt.Sprintf("%s.%s.png", "screenshot", tstamp)
+
+	f, err := os.Create(filename)
+	check(err)
+	defer f.Close()
+	_, err = f.Write(img)
+	check(err)
 }
