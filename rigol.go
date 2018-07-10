@@ -39,7 +39,7 @@ func main() {
 	toRun, header := buildQuery()
 
 	// Output CSV header
-	fmt.Printf("%s, %s, %s\n", "timestamp", header, "querytime")
+	fmt.Printf("%s, %s, %s\n", "timestamp", header, "querytime(ms)")
 
 	for ; *count != 0; *count-- {
 
@@ -58,9 +58,20 @@ func main() {
 		result = strings.Replace(result, ";", ", ", -1)
 
 		tdone := time.Now()
-		fmt.Printf("%s, %s, %s\n", tdone.Format(time.RFC3339), result, tdone.Sub(tstart))
+		taken := tdone.Sub(tstart)
+		takenms := int64(taken/time.Millisecond)
 
-		time.Sleep(time.Duration(*interval) * time.Second)
+		fmt.Printf("%s, %s, %d\n", tdone.Format(time.RFC3339), result, takenms)
+
+		// Shorten the interval to allow for the time taken for the previous run.
+		// but if the time taken is longer than the interval, no need to sleep at all.
+		intervalms := int64(*interval * 1000)
+		if takenms < intervalms {
+			sleeptime := time.Duration(intervalms - takenms) * time.Millisecond
+			fmt.Println("Sleeping", sleeptime, "as duration was", taken)
+			time.Sleep(sleeptime)
+		}
+
 	}
 }
 
