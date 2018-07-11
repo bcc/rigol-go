@@ -16,14 +16,14 @@ var host = flag.String("host", "rigol", "hostname or IP address")
 var port = flag.Int("port", 5555, "tcp port to use")
 var interval = flag.Int("interval", 1, "number of seconds between readings")
 var count = flag.Int("count", -1, "number of measurements to take. -1 = no limit")
-var f_vavg = flag.Bool("vavg", true, "include Vavg")
-var f_vmin = flag.Bool("vmin", true, "include Vmin")
-var f_vmax = flag.Bool("vmax", true, "include Vmax")
-var f_vpp = flag.Bool("vpp", false, "include Vpp")
-var f_vrms = flag.Bool("vrms", false, "include Vrms")
-var f_freq = flag.Bool("freq", false, "include frequency")
-var f_screen = flag.Bool("screen", false, "collect screenshots in PNG format")
-var f_clear = flag.Bool("clear", false, "clear stats after collection")
+var fVavg = flag.Bool("vavg", true, "include Vavg")
+var fVmin = flag.Bool("vmin", false, "include Vmin")
+var fVmax = flag.Bool("vmax", false, "include Vmax")
+var fVpp = flag.Bool("vpp", false, "include Vpp")
+var fVrms = flag.Bool("vrms", false, "include Vrms")
+var fFreq = flag.Bool("freq", false, "include frequency")
+var fScreen = flag.Bool("screen", false, "collect screenshots in PNG format")
+var fClear = flag.Bool("clear", false, "clear stats after collection")
 
 func main() {
 
@@ -51,7 +51,7 @@ func main() {
 		result = strings.Replace(result, ";", ", ", -1)
 
 		// Collect and write screenshot if the screen flag is set.
-		if *f_screen {
+		if *fScreen {
 			img := getScreenshot(conn)
 			if img != nil {
 				writeScreenshot(img)
@@ -59,13 +59,13 @@ func main() {
 		}
 
 		// Clear history
-		if *f_clear {
-			fmt.Fprintf(conn, ":CLE\n")
+		if *fClear {
+			fmt.Fprintf(conn, ":CLE;MEAS:STAT:RES\n")
 		}
 
 		tdone := time.Now()
 		taken := tdone.Sub(tstart)
-		takenms := int64(taken/time.Millisecond)
+		takenms := int64(taken / time.Millisecond)
 
 		fmt.Printf("%s, %s, %d\n", tdone.Format(time.RFC3339), result, takenms)
 
@@ -73,7 +73,7 @@ func main() {
 		// but if the time taken is longer than the interval, no need to sleep at all.
 		intervalms := int64(*interval * 1000)
 		if takenms < intervalms {
-			sleeptime := time.Duration(intervalms - takenms) * time.Millisecond
+			sleeptime := time.Duration(intervalms-takenms) * time.Millisecond
 			time.Sleep(sleeptime)
 		}
 
@@ -96,34 +96,34 @@ func buildQuery() (string, string) {
 		// 2 channels, 4 measurements resulted in 3.9 vs 3.5 seconds on my DS1054Z.
 
 		// Tell the scope which channel the following commands are for
-		command = append(command, fmt.Sprintf(":MEAS:SOUR CHAN%d", i+1))
+		//command = append(command, fmt.Sprintf(":MEAS:SOUR CHAN%d", i+1))
 
 		// Query measurement unit.
 		command = append(command, fmt.Sprintf(":CHAN%d:UNIT?", i+1))
 		header = append(header, fmt.Sprintf("CH%d Unit", i+1))
 
-		if *f_vavg {
-			command = append(command, ":MEAS:ITEM? VAVG")
+		if *fVavg {
+			command = append(command, fmt.Sprintf(":MEAS:ITEM? VAVG,CHAN%d", i+1))
 			header = append(header, fmt.Sprintf("CH%d Vavg", i+1))
 		}
-		if *f_vmin {
-			command = append(command, ":MEAS:ITEM? VMIN")
+		if *fVmin {
+			command = append(command, fmt.Sprintf(":MEAS:ITEM? VMIN,CHAN%d", i+1))
 			header = append(header, fmt.Sprintf("CH%d Vmin", i+1))
 		}
-		if *f_vmax {
-			command = append(command, ":MEAS:ITEM? VMAX")
+		if *fVmax {
+			command = append(command, fmt.Sprintf(":MEAS:ITEM? VMAX,CHAN%d", i+1))
 			header = append(header, fmt.Sprintf("CH%d Vmax", i+1))
 		}
-		if *f_vpp {
-			command = append(command, ":MEAS:ITEM? VPP")
+		if *fVpp {
+			command = append(command, fmt.Sprintf(":MEAS:ITEM? VPP,CHAN%d", i+1))
 			header = append(header, fmt.Sprintf("CH%d Vpp", i+1))
 		}
-		if *f_vrms {
-			command = append(command, ":MEAS:ITEM? VRMS")
+		if *fVrms {
+			command = append(command, fmt.Sprintf(":MEAS:ITEM? VRMS,CHAN%d", i+1))
 			header = append(header, fmt.Sprintf("CH%d Vrms", i+1))
 		}
-		if *f_freq {
-			command = append(command, ":MEAS:ITEM? FREQ")
+		if *fFreq {
+			command = append(command, fmt.Sprintf(":MEAS:ITEM? FREQ,CHAN%d", i+1))
 			header = append(header, fmt.Sprintf("CH%d freq", i+1))
 		}
 	}
