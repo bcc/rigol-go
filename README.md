@@ -1,4 +1,4 @@
-# Rigol scope stats in Go
+# Query Rigol Oscilloscope stats in Go
 
 This tool allows you to pull measurement statistics from a Rigol Oscilloscope over the network connection and outputs them in CSV format. I've tested it with my DS1054Z so far.
 
