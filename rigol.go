@@ -46,17 +46,17 @@ func main() {
 
 		tstart := time.Now()
 
-		result := queryScope(conn, toRun)
-		// Return from scope is semicolon separated, so just switch for commas.
-		result = strings.Replace(result, ";", ", ", -1)
-
-		// Collect and write screenshot if the screen flag is set.
+		// Collect and write screenshot if the screen flag is set. Do this first because queries can take a little while.
 		if *fScreen {
 			img := getScreenshot(conn)
 			if img != nil {
 				writeScreenshot(img)
 			}
 		}
+
+		result := queryScope(conn, toRun)
+		// Return from scope is semicolon separated, so just switch for commas.
+		result = strings.Replace(result, ";", ", ", -1)
 
 		// Clear history
 		if *fClear {
